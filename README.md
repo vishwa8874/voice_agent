@@ -29,7 +29,6 @@ Phone Numbers → Manage → Verified Caller IDs
 
 Verify your personal mobile number.
 
-![Verified Caller IDs](Screenshot%202026-06-12%20152638(2).png)
 
 ---
 
@@ -42,8 +41,6 @@ TwiML Bin
 ```
 
 Then click **Create TwiML Bin**.
-
-![Search TwiML Bin](Screenshot%202026-06-12%20152735.png)
 
 ---
 
@@ -64,7 +61,6 @@ Replace the ngrok URL with your own URL.
 
 Example configuration:
 
-![TwiML Bin Configuration](Screenshot%202026-06-12%20152811.png)
 
 After entering the XML, click **Create**.
 
@@ -120,10 +116,6 @@ Your verified mobile number should appear under:
 ```text
 Phone Numbers → Manage → Verified Caller IDs
 ```
-
-Example:
-
-![Verified Number Example](Screenshot%202026-06-12%20153219.png)
 
 ---
 
