@@ -1,9 +1,12 @@
-// White-Labeled Dashboard JavaScript
+// White-Labeled Dashboard JavaScript with Deepgram & Twilio Integration
 
 let currentPage = 1;
 let currentStatusFilter = '';
+let currentProviderFilter = '';
 let statusChart = null;
 let trendsChart = null;
+let providerChart = null;
+let sentimentChart = null;
 
 // Initialize dashboard on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -13,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeDashboard() {
     loadSummary();
-    loadStats();
+    loadAnalytics();
     loadLogs();
     updateLastUpdateTime();
 }
@@ -40,6 +43,12 @@ function setupEventListeners() {
         loadLogs();
     });
 
+    document.getElementById('providerFilter').addEventListener('change', function() {
+        currentProviderFilter = this.value;
+        currentPage = 1;
+        loadLogs();
+    });
+
     document.getElementById('prevBtn').addEventListener('click', function() {
         if (currentPage > 1) {
             currentPage--;
@@ -53,6 +62,13 @@ function setupEventListeners() {
         loadLogs();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    document.getElementById('searchBtn').addEventListener('click', performTranscriptionSearch);
+    document.getElementById('transcriptionSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performTranscriptionSearch();
+        }
+    });
 }
 
 function getDaysParameter() {
@@ -65,33 +81,51 @@ function loadSummary() {
     fetch(`/api/summary?days=${days}`)
         .then(response => response.json())
         .then(data => {
+            // Basic metrics
             document.getElementById('totalCalls').textContent = formatNumber(data.total_calls);
             document.getElementById('successfulCalls').textContent = formatNumber(data.successful);
             document.getElementById('failedCalls').textContent = formatNumber(data.failed);
             document.getElementById('successRate').textContent = data.success_rate.toFixed(1) + '%';
             document.getElementById('avgDuration').textContent = data.average_duration;
+            
+            // Deepgram metrics
+            if (data.deepgram) {
+                document.getElementById('transcribedCalls').textContent = formatNumber(data.deepgram.transcribed_calls);
+                document.getElementById('avgConfidence').textContent = data.deepgram.average_confidence;
+            }
+            
+            // Twilio metrics
+            if (data.twilio) {
+                document.getElementById('totalCost').textContent = '$' + data.twilio.total_cost.toFixed(4);
+                document.getElementById('avgCallCost').textContent = '$' + data.twilio.average_call_cost.toFixed(4);
+            }
         })
         .catch(error => console.error('Error loading summary:', error));
 }
 
-function loadStats() {
+function loadAnalytics() {
     const days = getDaysParameter();
     
-    fetch(`/api/logs/stats?days=${days}`)
+    fetch(`/api/analytics?days=${days}`)
         .then(response => response.json())
         .then(data => {
             updateStatusChart(data.status_breakdown);
             updateTrendsChart(data.hourly_trends);
+            updateProviderChart(data.provider_breakdown);
+            updateSentimentChart(data.sentiment_breakdown);
         })
-        .catch(error => console.error('Error loading stats:', error));
+        .catch(error => console.error('Error loading analytics:', error));
 }
 
 function loadLogs() {
-    const days = getDaysParameter();
     let url = `/api/logs?page=${currentPage}&per_page=50`;
     
     if (currentStatusFilter) {
         url += `&status=${currentStatusFilter}`;
+    }
+    
+    if (currentProviderFilter) {
+        url += `&provider=${currentProviderFilter}`;
     }
     
     fetch(url)
@@ -103,7 +137,7 @@ function loadLogs() {
         .catch(error => {
             console.error('Error loading logs:', error);
             document.getElementById('logsTableBody').innerHTML = 
-                '<tr><td colspan="5" class="text-center">Error loading logs</td></tr>';
+                '<tr><td colspan="7" class="text-center">Error loading logs</td></tr>';
         });
 }
 
@@ -111,7 +145,7 @@ function renderLogsTable(logs) {
     const tbody = document.getElementById('logsTableBody');
     
     if (logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No logs found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No logs found</td></tr>';
         return;
     }
     
@@ -120,8 +154,18 @@ function renderLogsTable(logs) {
             <td><span class="call-id">${truncateId(log.call_id)}</span></td>
             <td>${log.duration.toFixed(2)}</td>
             <td><span class="status-badge ${log.status}">${capitalizeStatus(log.status)}</span></td>
+            <td>
+                ${log.transcription ? 
+                    `<span class="transcription-preview" title="${log.transcription}">${truncateText(log.transcription, 50)}</span>` : 
+                    '<span style="color: #999;">No transcription</span>'}
+            </td>
+            <td>
+                ${log.confidence ? 
+                    `<span class="confidence-score">${(log.confidence * 100).toFixed(1)}%</span>` : 
+                    '—'}
+            </td>
+            <td><span class="provider-badge ${log.provider || 'custom'}">${capitalizeStatus(log.provider || 'custom')}</span></td>
             <td>${formatDateTime(log.timestamp)}</td>
-            <td>${log.user_id}</td>
         </tr>
     `).join('');
 }
@@ -257,6 +301,156 @@ function updateTrendsChart(hourlyData) {
     });
 }
 
+function updateProviderChart(providerData) {
+    const ctx = document.getElementById('providerChart').getContext('2d');
+    
+    if (providerChart) {
+        providerChart.destroy();
+    }
+    
+    const labels = Object.keys(providerData).map(l => capitalizeStatus(l));
+    const data = Object.values(providerData);
+    const colors = {
+        'twilio': '#e74c3c',
+        'custom': '#3498db'
+    };
+    
+    providerChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: Object.keys(providerData).map(key => colors[key] || '#95a5a6'),
+                borderColor: '#ffffff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 12 },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${value} calls (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateSentimentChart(sentimentData) {
+    const ctx = document.getElementById('sentimentChart').getContext('2d');
+    
+    if (sentimentChart) {
+        sentimentChart.destroy();
+    }
+    
+    const labels = Object.keys(sentimentData).length > 0 ? Object.keys(sentimentData).map(l => capitalizeStatus(l)) : ['No Data'];
+    const data = Object.keys(sentimentData).length > 0 ? Object.values(sentimentData) : [1];
+    const colors = {
+        'positive': '#27ae60',
+        'neutral': '#3498db',
+        'negative': '#e74c3c'
+    };
+    
+    sentimentChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sentiment Count',
+                data: data,
+                backgroundColor: Object.keys(sentimentData).map(key => colors[key] || '#95a5a6'),
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Count: ${context.parsed.x}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function performTranscriptionSearch() {
+    const query = document.getElementById('transcriptionSearch').value.trim();
+    
+    if (!query || query.length < 3) {
+        alert('Please enter at least 3 characters to search');
+        return;
+    }
+    
+    const days = getDaysParameter();
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = '<div class="spinner"></div> Searching transcriptions...';
+    
+    fetch(`/api/transcriptions/search?q=${encodeURIComponent(query)}&days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.count === 0) {
+                resultsContainer.innerHTML = '<p style="text-align: center; color: #999;">No results found</p>';
+                return;
+            }
+            
+            resultsContainer.innerHTML = data.results.map(result => `
+                <div class="search-result-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <strong style="color: #4a90e2;">Deepgram Transcription</strong>
+                        ${result.confidence ? `<span class="confidence-badge">${(result.confidence * 100).toFixed(1)}%</span>` : ''}
+                    </div>
+                    <div class="search-result-transcription">${result.transcription}</div>
+                    <div class="search-result-meta">
+                        <span>📞 ${truncateId(result.call_id)}</span>
+                        <span>⏱ ${result.duration.toFixed(2)}s</span>
+                        <span>${formatDateTime(result.timestamp)}</span>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            resultsContainer.innerHTML = '<p style="color: red;">Error performing search</p>';
+        });
+}
+
 function updateLastUpdateTime() {
     const now = new Date();
     const timeString = now.toLocaleString('en-US', {
@@ -300,10 +494,15 @@ function truncateId(id, length = 12) {
     return id.substring(0, length) + '...';
 }
 
+function truncateText(text, length = 50) {
+    if (text.length <= length) return text;
+    return text.substring(0, length) + '...';
+}
+
 // Auto-refresh every 5 minutes
 setInterval(function() {
     loadSummary();
-    loadStats();
+    loadAnalytics();
     loadLogs();
     updateLastUpdateTime();
 }, 5 * 60 * 1000);
