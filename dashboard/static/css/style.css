@@ -19,6 +19,8 @@
     --border-color: #bdc3c7;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+    --deepgram-color: #4a90e2;
+    --twilio-color: #e74c3c;
 }
 
 body {
@@ -192,6 +194,16 @@ body {
     background-color: #fff3e0;
 }
 
+.metric-icon.deepgram {
+    background-color: #e3f2fd;
+    color: var(--deepgram-color);
+}
+
+.metric-icon.twilio {
+    background-color: #ffebee;
+    color: var(--twilio-color);
+}
+
 .metric-content h3 {
     font-size: 14px;
     color: var(--text-light);
@@ -209,6 +221,26 @@ body {
 .metric-label {
     font-size: 12px;
     color: var(--text-light);
+}
+
+/* Provider Metrics Section */
+.provider-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(74, 144, 226, 0.05) 0%, rgba(231, 76, 60, 0.05) 100%);
+    border-radius: 12px;
+}
+
+.provider-card {
+    border-left: 4px solid var(--secondary-color);
+}
+
+.provider-card:nth-child(3),
+.provider-card:nth-child(4) {
+    border-left-color: var(--twilio-color);
 }
 
 /* Charts Section */
@@ -233,6 +265,81 @@ body {
     position: relative;
     height: 300px;
     width: 100%;
+}
+
+/* Search Section */
+.search-section {
+    margin-bottom: 30px;
+}
+
+.search-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--deepgram-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.search-result-card {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--deepgram-color);
+    padding: 15px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.search-result-card:hover {
+    background-color: #fff;
+    box-shadow: var(--shadow);
+}
+
+.search-result-transcription {
+    font-size: 13px;
+    color: var(--text-color);
+    margin: 10px 0;
+    line-height: 1.5;
+    max-height: 100px;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #ffffff;
+    border-radius: 4px;
+}
+
+.search-result-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.confidence-badge {
+    background-color: var(--deepgram-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
 }
 
 /* Logs Section */
@@ -278,7 +385,7 @@ body {
 .logs-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .logs-table thead {
@@ -327,7 +434,45 @@ body {
 
 .logs-table .call-id {
     font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--secondary-color);
+}
+
+.logs-table .transcription-preview {
     font-size: 12px;
+    color: var(--text-light);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.logs-table .transcription-preview:hover {
+    color: var(--deepgram-color);
+}
+
+.confidence-score {
+    font-weight: 600;
+    color: var(--deepgram-color);
+}
+
+.provider-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.provider-badge.twilio {
+    background-color: #ffebee;
+    color: var(--twilio-color);
+}
+
+.provider-badge.custom {
+    background-color: #e3f2fd;
     color: var(--secondary-color);
 }
 
@@ -391,7 +536,8 @@ body {
         justify-content: space-between;
     }
 
-    .summary-cards {
+    .summary-cards,
+    .provider-metrics {
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
 
@@ -405,7 +551,7 @@ body {
     }
 
     .logs-table {
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .logs-table th,
@@ -416,6 +562,19 @@ body {
     .section-header {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .search-container {
+        flex-direction: column;
+    }
+
+    .filter-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .filter-select {
+        width: 100%;
     }
 }
 
@@ -428,12 +587,17 @@ body {
         font-size: 22px;
     }
 
-    .summary-cards {
+    .summary-cards,
+    .provider-metrics {
         grid-template-columns: 1fr;
     }
 
     .pagination {
         flex-wrap: wrap;
+    }
+
+    .search-results {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -471,4 +635,29 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* Deepgram & Twilio Specific Styling */
+.deepgram-badge::before {
+    content: "🎤 ";
+}
+
+.twilio-badge::before {
+    content: "☎️ ";
+}
+
+.provider-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.provider-indicator.deepgram {
+    background-color: var(--deepgram-color);
+}
+
+.provider-indicator.twilio {
+    background-color: var(--twilio-color);
 }
