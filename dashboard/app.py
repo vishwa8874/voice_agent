@@ -10,6 +10,11 @@ from typing import List, Dict, Any
 import logging
 from deepgram import Deepgram
 from twilio.rest import Client
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
@@ -19,10 +24,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Deepgram and Twilio
-DEEPGRAM_API_KEY = "your-deepgram-api-key"
-TWILIO_ACCOUNT_SID = "your-twilio-account-sid"
-TWILIO_AUTH_TOKEN = "your-twilio-auth-token"
-TWILIO_PHONE_NUMBER = "your-twilio-phone-number"
+DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY', 'your-deepgram-api-key')
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', 'your-twilio-account-sid')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', 'your-twilio-auth-token')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER', 'your-twilio-phone-number')
 
 deepgram_client = Deepgram(DEEPGRAM_API_KEY)
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -51,7 +56,9 @@ class EnhancedCallLogAggregator:
             "transcription": None,
             "sentiment": None,
             "entities": [],
-            "keywords": []
+            "keywords": [],
+            "provider": "custom",
+            "confidence": None
         }
         
         # Get transcription from Deepgram
@@ -81,7 +88,8 @@ class EnhancedCallLogAggregator:
             "call_cost": None,
             "call_quality": None,
             "transcription": None,
-            "sentiment": None
+            "sentiment": None,
+            "confidence": None
         }
         
         # Get call cost from Twilio
@@ -309,6 +317,87 @@ def get_call_recording(call_id):
     return jsonify({"error": "Call not found"}), 404
 
 
+@app.route('/api/twilio/incoming', methods=['POST'])
+def twilio_incoming():
+    """Handle incoming Twilio calls."""
+    try:
+        call_sid = request.form.get('CallSid')
+        from_number = request.form.get('From')
+        to_number = request.form.get('To')
+        
+        logger.info(f"Incoming call: {call_sid} from {from_number} to {to_number}")
+        
+        # Log the call
+        aggregator.add_twilio_call(
+            call_sid=call_sid,
+            from_number=from_number,
+            to_number=to_number,
+            duration=0,
+            status="active",
+            timestamp=datetime.now().isoformat()
+        )
+        
+        # Return TwiML response
+        twiml_response = '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Thank you for calling</Say></Response>'
+        return twiml_response, 200, {'Content-Type': 'application/xml'}
+    except Exception as e:
+        logger.error(f"Error handling incoming call: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/twilio/status', methods=['POST'])
+def twilio_status():
+    """Handle Twilio status callbacks."""
+    try:
+        call_sid = request.form.get('CallSid')
+        call_status = request.form.get('CallStatus')
+        call_duration = request.form.get('CallDuration', 0)
+        
+        logger.info(f"Call status update: {call_sid} - {call_status} - Duration: {call_duration}s")
+        
+        # Update call in aggregator
+        for log in aggregator.logs:
+            if log.get('call_id') == call_sid:
+                log['status'] = call_status
+                log['duration'] = float(call_duration)
+                break
+        
+        return 'OK', 200
+    except Exception as e:
+        logger.error(f"Error handling status callback: {e}")
+        return 'ERROR', 500
+
+
+@app.route('/api/deepgram/callback', methods=['POST'])
+def deepgram_callback():
+    """Handle Deepgram transcription callbacks."""
+    try:
+        data = request.get_json()
+        
+        # Extract transcription data
+        call_id = data.get('metadata', {}).get('call_id')
+        channels = data.get('results', {}).get('channels', [])
+        
+        if channels and len(channels) > 0:
+            alternatives = channels[0].get('alternatives', [])
+            if alternatives and len(alternatives) > 0:
+                transcript = alternatives[0].get('transcript')
+                confidence = alternatives[0].get('confidence')
+                
+                # Update call log
+                for log in aggregator.logs:
+                    if log['call_id'] == call_id:
+                        log['transcription'] = transcript
+                        log['confidence'] = confidence
+                        logger.info(f"Updated transcription for {call_id}")
+                        break
+        
+        return jsonify({"status": "received"}), 200
+    except Exception as e:
+        logger.error(f"Error handling Deepgram callback: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
@@ -316,8 +405,8 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "total_logs": len(aggregator.logs),
-        "deepgram": "connected" if DEEPGRAM_API_KEY else "not configured",
-        "twilio": "connected" if TWILIO_ACCOUNT_SID else "not configured"
+        "deepgram": "connected" if DEEPGRAM_API_KEY and DEEPGRAM_API_KEY != 'your-deepgram-api-key' else "not configured",
+        "twilio": "connected" if TWILIO_ACCOUNT_SID and TWILIO_ACCOUNT_SID != 'your-twilio-account-sid' else "not configured"
     })
 
 
