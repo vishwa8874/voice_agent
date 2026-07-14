@@ -68,6 +68,45 @@
             </div>
         </section>
 
+        <!-- Deepgram & Twilio Metrics -->
+        <section class="provider-metrics">
+            <div class="card metric-card provider-card">
+                <div class="metric-icon deepgram">🎤</div>
+                <div class="metric-content">
+                    <h3>Transcribed</h3>
+                    <p class="metric-value" id="transcribedCalls">—</p>
+                    <span class="metric-label">Deepgram</span>
+                </div>
+            </div>
+
+            <div class="card metric-card provider-card">
+                <div class="metric-icon deepgram">📊</div>
+                <div class="metric-content">
+                    <h3>Avg Confidence</h3>
+                    <p class="metric-value" id="avgConfidence">—%</p>
+                    <span class="metric-label">Transcription Quality</span>
+                </div>
+            </div>
+
+            <div class="card metric-card provider-card">
+                <div class="metric-icon twilio">☎️</div>
+                <div class="metric-content">
+                    <h3>Total Cost</h3>
+                    <p class="metric-value" id="totalCost">$—</p>
+                    <span class="metric-label">Twilio</span>
+                </div>
+            </div>
+
+            <div class="card metric-card provider-card">
+                <div class="metric-icon twilio">💰</div>
+                <div class="metric-content">
+                    <h3>Avg Cost/Call</h3>
+                    <p class="metric-value" id="avgCallCost">$—</p>
+                    <span class="metric-label">Per Call</span>
+                </div>
+            </div>
+        </section>
+
         <!-- Charts Section -->
         <section class="charts-section">
             <div class="card chart-card">
@@ -83,6 +122,32 @@
                     <canvas id="trendsChart"></canvas>
                 </div>
             </div>
+
+            <div class="card chart-card">
+                <h2>Provider Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="providerChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <h2>Sentiment Analysis</h2>
+                <div class="chart-container">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transcription Search -->
+        <section class="search-section">
+            <div class="card">
+                <h2>Search Transcriptions</h2>
+                <div class="search-container">
+                    <input type="text" id="transcriptionSearch" class="search-input" placeholder="Search across all call transcriptions...">
+                    <button id="searchBtn" class="btn btn-primary">Search</button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
         </section>
 
         <!-- Logs Table -->
@@ -97,6 +162,11 @@
                             <option value="failed">Failed</option>
                             <option value="pending">Pending</option>
                         </select>
+                        <select id="providerFilter" class="filter-select">
+                            <option value="">All Providers</option>
+                            <option value="twilio">Twilio</option>
+                            <option value="custom">Custom</option>
+                        </select>
                     </div>
                 </div>
 
@@ -107,12 +177,14 @@
                                 <th>Call ID</th>
                                 <th>Duration (s)</th>
                                 <th>Status</th>
+                                <th>Transcription</th>
+                                <th>Confidence</th>
+                                <th>Provider</th>
                                 <th>Timestamp</th>
-                                <th>User</th>
                             </tr>
                         </thead>
                         <tbody id="logsTableBody">
-                            <tr><td colspan="5" class="loading">Loading logs...</td></tr>
+                            <tr><td colspan="7" class="loading">Loading logs...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -129,7 +201,7 @@
         <!-- Footer -->
         <footer class="footer">
             <p>Last updated: <span id="lastUpdate">—</span></p>
-            <p class="footer-note">All data is confidential and securely stored.</p>
+            <p class="footer-note">Powered by Deepgram & Twilio | All data is confidential and securely stored.</p>
         </footer>
     </div>
 
